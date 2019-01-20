@@ -37,13 +37,12 @@ db.init(true).then(function () {
     logger.error("Something wrong with DB, shutting down:");
     logger.error(err);
 }).then(_ => {
+    logger.verbose("Loading logic modules...");
     const m_files = fs.readdirSync('../bot_logic/');
     const actions = m_files.map(function (filename) {
-        if (m_files.hasOwnProperty(filename)) {
-            const manager = require("../bot_logic/" + m_files[filename]);
-            logger.verbose("Loading update handler (", m_files[filename], ")");
-            return update_manager.import(manager);
-        }
+        const manager = require("../bot_logic/" + filename);
+        logger.verbose("Loading update handler (", filename, ")");
+        return update_manager.import(manager);
     });
     return Promise.all(actions)
 }).catch(function(err) {
@@ -66,7 +65,7 @@ function update() {
         null,
         update_manager.handle,
         function () {
-            setTimeout(update, 500)
+            setTimeout(update, 1000)
         }
     )
 }

@@ -11,6 +11,7 @@ const start_date = Date.now();
 logger.info("Startup date =", start_date);
 
 manager.name = "logic/main";
+db = manager.get_db();
 
 let replied_users = [];
 
@@ -122,45 +123,52 @@ manager.on_message(function (update) {
                     logger.error(inspect(body));
                     tg_send.message(msg.chat.id, "Body not ok: "+inspect(error), msg.message_id, function(){})
                 }
+
             });
         }
-        if (msg.text === "delete" || msg.text === "/delete") {
+        if (msg.text === "omega delete" || msg.text === "/omega_delete") {
             tg_edit.delete_msg(msg.chat.id, msg.reply_to_message.message_id);
             tg_edit.delete_msg(msg.chat.id, msg.message_id);
         }
     }
 });
 
-// manager.on_message(function (update) {
-//     const msg = update.message;
-//
-//     if (/^я пидор/i.test(msg.text)) {
-//         db.get_collection("pidors").then(coll => {
-//             logger.verbose("Collection: ", inspect(coll));
-//             coll.insertOne({chat: msg.chat.id, user: msg.from.id}, function (err, result) {
-//                 logger.verbose("pidor inserts:", result.insertedCount)
-//             });
-//             tg_send.message(msg.chat.id, "Я запомню", msg.message_id);
-//         }).catch(err => {
-//             logger.error(err);
-//         })
-//     } else if (/(?:пидор)|(?:pidor)/i.test(msg.text)) {
-//         db.get_collection("pidors").then(coll => {
-//             const pidors = coll.find({chat: msg.chat.id}).toArray();
-//             if (pidors.length > 0) {
-//                 const pidor_id = pidors[Math.floor(Math.random() * pidors.length)];
-//                 tg_chat.get_member(msg.chat_id, pidor_id, function (pidor_info) {
-//                     if (pidor_info.ok && pidor_info.result && pidor_info.result.user) {
-//                         tg_send.message(msg.chat.id, "ПИДОР ДЕТЕКТЕД: @"+pidor_id+"("+pidor_info.result.user.first_name+" "+pidor_info.result.user.last_name+")");
-//                     }
-//                 });
-//             } else {
-//                 tg_send.message(msg.chat.id, "В этом чате пидоры только химики")
-//             }
-//         }).catch(err => {
-//             logger.error(err);
-//         });
-//     }
-// });
+manager.on_message(function (update) {
+    const msg = update.message;
+
+    if (/^я пидор/i.test(msg.text)) {
+        db.get_collection("pidors").then(coll => {
+            logger.verbose("Collection: ", inspect(coll));
+            coll.insertOne({chat: msg.chat.id, user: msg.from.id}, function (err, result) {
+                logger.verbose("pidor inserts:", result.insertedCount)
+            });
+            tg_send.message(msg.chat.id, "Я запомню", msg.message_id);
+        }).catch(err => {
+            logger.error(err);
+        })
+    } else if (/(?:пидор)|(?:pidor)/i.test(msg.text)) {
+        db.get_collection("pidors").then(coll => {
+            return coll.find({chat: msg.chat.id}).toArray()
+        }).then(pidors => {
+            logger.verbose("Known: ", inspect(pidors));
+            if (pidors.length > 0) {
+                logger.verbose("Looking for pidor...");
+                const pidor = pidors[Math.floor(Math.random() * pidors.length)];
+                logger.verbose("Found:", inspect(pidor));
+                tg_chat.get_member(msg.chat.id, pidor.user, function (err, resp, pidor_info) {
+                    logger.verbose("pidorinfo: ", inspect(pidor_info));
+                    if (pidor_info && pidor_info.ok && pidor_info.result && pidor_info.result.user) {
+
+                        tg_send.message(msg.chat.id, "ПИДОР ДЕТЕКТЕД: @"+pidor_info.result.user.username+" ("+pidor_info.result.user.first_name+" "+pidor_info.result.user.last_name+")");
+                    } else {
+                        tg_send.message(msg.chat.id, "Он, похоже, ливнул 😑")
+                    }
+                });
+            }
+        }).catch(err => {
+            logger.error(err);
+        });
+    }
+});
 
 module.exports = manager;

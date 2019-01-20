@@ -50,6 +50,7 @@ function init(DB) {
                 reject(name + " - init - No DB client!!");
             }
             db = DB;
+            initialized = true;
         }
         resolve();
     })
@@ -73,23 +74,22 @@ function handle(update) {
         init(db).then(function () {
             const last_offset = db.values.offset.get();
 
+
+            logger.verbose("last offset:", last_offset, "u_id", update.update_id);
+            if (last_offset <= update.update_id) {
+                logger.verbose("updating last_offset to ", update.update_id + 1);
+                db.values.offset.set(update.update_id + 1)
+            }
             if (update.hasOwnProperty("message")) {
                 // TODO: Add special command handler using Telegram Entities
 
                 logger.verbose("Message detected (", update.message.message_id, ") in chat", update.message.chat.id);
-
                 for (const h of handlers) {
                     for (const field in update) {
                         if (update.hasOwnProperty(field) && h.type === field && typeof h.func === "function") {
                             h.func(update)
                         }
                     }
-                }
-
-                // logger.verbose("last offset:", last_offset, "u_id", update.update_id);
-                if (last_offset <= update.update_id) {
-                    // logger.verbose("updating last_offset to ", update.update_id + 1);
-                    db.values.offset.set(update.update_id + 1)
                 }
             }
             resolve();
@@ -111,11 +111,9 @@ function import_manager(update_handler) {
             handlers.concat(update_handler.handlers);
             update_handler.init(db).then(function () {
                 logger.info("All manager init actions done in "+name);
-                logger.verbose(require("util").inspect(update_handler.startup_actions));
                 return Promise.all(update_handler.startup_actions);
             }).then(function() {
                 logger.info("All startup actions for hndler done in "+name);
-                initialized = true;
                 resolve();
             }).catch(reject);
         } else {

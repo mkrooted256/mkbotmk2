@@ -2,6 +2,7 @@ const config = require('../../config/general');
 const request = require('request');
 const Logger = require("../utils/logger");
 const logger = new Logger("tg/base");
+const inspect = require("util").inspect;
 
 function send_request(path, json_data, callback) {
     let params = {
@@ -60,17 +61,18 @@ function handle_updates(offset, limit, timeout, allowed_updates, update_handler,
         if (body && body.ok) {
             logger.verbose("got body ok");
             if (body.result) {
-                logger.verbose("got body results");
+                logger.verbose("got body results:");
+                logger.verbose(require("util").inspect(body.result));
                 const actions = body.result.map(update_handler);
                 Promise.all(actions).then(callback).catch(err => {
                     logger.error("Error handling updates");
-                    logger.error(body);
+                    logger.error(inspect(body));
                     callback(body);
                 });
             }
         } else {
             logger.error("Error retrieving updates");
-            logger.error(body);
+            logger.error(inspect(body));
             callback(body);
         }
     });

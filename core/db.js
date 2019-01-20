@@ -29,18 +29,24 @@ function DB() {
                         create: function() {
                             logger.verbose("offset C handler");
                             return new Promise((resolve, reject) => {
-                                local_db.get_storage().then(storage => {
-                                    return storage.findOne({key: "last_offset"}).then(offset => {
-                                        if (!offset || !offset.value) {
-                                            let result = storage.insertOne({key: "last_offset", value: config.initial_offset});
-
-                                        }
-                                    })
+                                var storage;
+                                local_db.get_storage().then(s => {
+                                    storage = s;
+                                    return storage.findOne({key: "last_offset"})
                                 }).then(result => {
-                                    // logger.verbose("Insert result:");
-                                    // logger.verbose(require("util").inspect(result));
+                                    if (!result || !result.value) {
+                                        return storage.insertOne({key: "last_offset", value: config.initial_offset});
+                                    }
+                                    logger.verbose("FindOne result:");
+                                    logger.verbose(inspect(result));
 
                                     resolve();
+                                }).then(result => {
+                                    if (result) {
+                                        logger.verbose("last offset Insert Result:");
+                                        logger.verbose(inspect(result));
+                                        resolve();
+                                    }
                                 }).catch( error => {
                                     logger.error("DBuffer/offset C error:", error);
                                 })
@@ -67,7 +73,8 @@ function DB() {
                                     logger.error("DBuffer/offset U error:", err);
                                 })
                             })
-                        }
+                        },
+                        exists: true
                     });
                 }
                 resolve();
@@ -80,8 +87,13 @@ function DB() {
     };
 
     this.db_cleanup = function db_cleanup() {
+        if (local_db.values.offset.get()) {
+            local_db.values.offset.push();
+            logger.info("Pushing offset to db before exit");
+        }
         if (local_db.client)
             local_db.client.close(true);
+
     };
 
     this.get_connection = function get_connection() {
